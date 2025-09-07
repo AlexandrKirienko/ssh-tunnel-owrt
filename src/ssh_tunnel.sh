@@ -27,3 +27,27 @@ load_config() {
 load_config
 
 # ... остальной код скрипта без изменений ...
+
+# В функции run_on_server добавляем обработку ошибок
+run_on_server() {
+    local command="$1"
+    local attempt=1
+    local max_attempts=3
+    
+    while [ $attempt -le $max_attempts ]; do
+        ssh -o BatchMode=yes -o ConnectTimeout=15 -i "$IDENTITY_FILE" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "$command" 2>/dev/null
+        local result=$?
+        
+        if [ $result -eq 0 ]; then
+            return 0
+        fi
+        
+        if [ $attempt -lt $max_attempts ]; then
+            sleep 2
+        fi
+        
+        attempt=$((attempt + 1))
+    done
+    
+    return 1
+}
