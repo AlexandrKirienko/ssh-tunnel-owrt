@@ -8,7 +8,6 @@ INSTALL_DIR="/root"
 CONFIG_DIR="/etc/config"
 INIT_DIR="/etc/init.d"
 LOG_DIR="/var/log"
-SSH_DIR="/root/.ssh"
 
 # Цвета для вывода
 RED='\033[0;31m'
@@ -120,48 +119,6 @@ test_ssh_connection() {
     fi
 }
 
-# Создание SSH ключа если нет и копирование на сервер
-setup_ssh_key() {
-    local user="$1"
-    local host="$2"
-    local port="$3"
-    local password="$4"
-    
-    info "Настройка SSH аутентификации..."
-    
-    # Создаем директорию .ssh если нет
-    mkdir -p "$SSH_DIR"
-    chmod 700 "$SSH_DIR"
-    
-    # Создаем SSH ключ если нет
-    if [ ! -f "$SSH_DIR/id_rsa" ]; then
-        info "Создание SSH ключа..."
-        ssh-keygen -t rsa -b 4096 -f "$SSH_DIR/id_rsa" -N "" -q
-        success "SSH ключ создан"
-    else
-        info "SSH ключ уже существует"
-    fi
-    
-    # Копируем публичный ключ на сервер используя пароль
-    info "Копирование SSH ключа на сервер..."
-    
-    if sshpass -p "$password" ssh-copy-id -o StrictHostKeyChecking=no -i "$SSH_DIR/id_rsa.pub" -p "$port" "$user@$host" 2>/dev/null; then
-        success "SSH ключ успешно скопирован на сервер"
-        
-        # Проверяем что ключ работает
-        if ssh -o BatchMode=yes -o ConnectTimeout=10 -p "$port" -i "$SSH_DIR/id_rsa" "$user@$host" "echo 'Key-based authentication successful'" 2>/dev/null; then
-            success "Аутентификация по ключу работает!"
-            return 0
-        else
-            error "Аутентификация по ключу не работает"
-            return 1
-        fi
-    else
-        error "Не удалось скопировать SSH ключ на сервер"
-        return 1
-    fi
-}
-
 # Вывод summary конфигурации
 show_config_summary() {
     local user="$1"
@@ -175,7 +132,6 @@ show_config_summary() {
     config_show "Сервер: $user@$host:$port"
     config_show "Пароль: $password"
     config_show "Файл конфигурации на сервере: $config_path"
-    config_show "SSH ключ: $SSH_DIR/id_rsa"
     config_show "Локальный конфиг: $CONFIG_DIR/ssh_tunnel"
     config_show "Логи: $LOG_DIR/ssh_tunnel.log"
     echo "============================"
@@ -210,8 +166,7 @@ show_security_warning() {
     warning "=== ВАЖНО: ИНФОРМАЦИЯ О БЕЗОПАСНОСТИ ==="
     warning "Пароль будет отображаться в открытом виде!"
     warning "Убедитесь, что никто не видит ваш экран."
-    warning "После установки аутентификация будет по SSH ключу."
-    warning "Пароль используется только для первоначальной настройки."
+    warning "Пароль будет сохранен в конфигурационном файле."
     warning "========================================"
     echo ""
     
@@ -274,12 +229,6 @@ interactive_setup() {
         exit 1
     fi
     
-    # Настройка SSH ключа
-    if ! setup_ssh_key "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT" "$SERVER_PASSWORD"; then
-        error "Настройка SSH аутентификации не удалась. Прерывание установки."
-        exit 1
-    fi
-    
     # Создаем конфигурационный файл
     info "Создание конфигурационного файла..."
     cat > "$CONFIG_DIR/ssh_tunnel" << EOF
@@ -287,21 +236,15 @@ config tunnel 'settings'
     option server_user '$SERVER_USER'
     option server_host '$SERVER_HOST'
     option server_port '$SERVER_PORT'
+    option server_password '$SERVER_PASSWORD'
     option server_config_path '$SERVER_CONFIG_PATH'
-    option identity_file '/root/.ssh/id_rsa'
     option ssh_port '2200'
     option web_port '8000'
     option hostname 'openwrt'
 EOF
     
     success "Конфигурация сохранена в $CONFIG_DIR/ssh_tunnel"
-    
-    # Показываем публичный ключ на всякий случай
-    echo ""
-    info "=== Ваш SSH публичный ключ ==="
-    cat "$SSH_DIR/id_rsa.pub"
-    echo "==============================="
-    echo ""
+    warning "Пароль сохранен в конфигурационном файле в открытом виде!"
 }
 
 # Установка зависимостей
@@ -317,7 +260,10 @@ install_dependencies() {
     if ! command -v sshpass >/dev/null 2>&1; then
         info "Установка sshpass для подключения по паролю..."
         opkg update
-        opkg install sshpass || warning "sshpass не установлен, будут использоваться существующие ключи"
+        opkg install sshpass || {
+            error "Не удалось установить sshpass. Обязательно для работы!"
+            exit 1
+        }
     fi
     
     success "Зависимости проверены"
@@ -382,9 +328,8 @@ install_ssh_tunnel() {
     echo ""
     echo "Логи: tail -f /var/log/ssh_tunnel.log"
     echo ""
+    warning "Пароль сохранен в открытом виде в $CONFIG_DIR/ssh_tunnel"
     info "Туннель будет автоматически запускаться при загрузке системы"
-    info "Пароль использовался только для первоначальной настройки"
-    info "Теперь аутентификация работает по SSH ключу"
 }
 
 # Удаление
@@ -402,21 +347,6 @@ uninstall_ssh_tunnel() {
     rm -f "$INIT_DIR/ssh_tunnel"
     rm -f "$CONFIG_DIR/ssh_tunnel"
     rm -f "$LOG_DIR/ssh_tunnel.log"
-    
-    # Предлагаем удалить SSH ключи
-    echo ""
-    if [ -f "$SSH_DIR/id_rsa" ]; then
-        read -r -p "$(question 'Удалить SSH ключи? (y/N): ')" answer
-        case "${answer:-n}" in
-            y|Y|yes|YES)
-                rm -f "$SSH_DIR/id_rsa" "$SSH_DIR/id_rsa.pub"
-                success "SSH ключи удалены"
-                ;;
-            *)
-                info "SSH ключи сохранены в $SSH_DIR/"
-                ;;
-        esac
-    fi
     
     success "SSH Tunnel удален"
 }
@@ -450,7 +380,7 @@ update_ssh_tunnel() {
         
         success "Файлы обновлены"
         
-        # Запускаем служба
+        # Запускаем службу
         "$INIT_DIR/ssh_tunnel" start
         success "Служба запущена"
     else
@@ -482,7 +412,7 @@ show_help() {
     echo "Использование:"
     echo "  sh <(wget -O - $REPO_URL/install.sh)           - Интерактивная установка"
     echo "  sh <(wget -O - $REPO_URL/install.sh) install   - Установка"
-    echo "  sh <(wget -O - $REPO_URL/install.sh) update    - Обновление"
+    echo "  ш <(wget -O - $REPO_URL/install.sh) update    - Обновление"
     echo "  sh <(wget -O - $REPO_URL/install.sh) config    - Редактирование конфигурации"
     echo "  sh <(wget -O - $REPO_URL/install.sh) uninstall - Удаление"
     echo "  sh <(wget -O - $REPO_URL/install.sh) help      - Помощь"
