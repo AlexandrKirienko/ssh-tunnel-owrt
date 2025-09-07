@@ -12,4 +12,4 @@
 
 ```bash
 # Автоматическая установка с интерактивной настройкой
-sh <(wget -O - https://raw.githubusercontent.com/username/ssh-tunnel-owrt/master/install.sh)
+sh <(wget -O - https://raw.githubusercontent.com/AlexandrKirienko/ssh-tunnel-owrt/master/install.sh)
