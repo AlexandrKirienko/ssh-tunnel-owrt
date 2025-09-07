@@ -83,46 +83,13 @@ input_with_default() {
     echo "${input:-$default}"
 }
 
-# Функция для ввода пароля с отображением звездочек
-input_password() {
+# Функция для ввода пароля в открытом виде
+input_password_visible() {
     local prompt="$1"
-    local password=""
-    local char=""
-    local char_count=0
+    local password
     
     prompt="$prompt: "
-    echo -n "$(question "$prompt")"
-    
-    # Сохраняем текущие настройки терминала
-    stty_save=$(stty -g)
-    # Устанавливаем режим без echo
-    stty -echo
-    
-    # Читаем пароль посимвольно
-    while IFS= read -r -n 1 -s char; do
-        # Enter - завершаем ввод
-        if [[ $char == $'\0' ]]; then
-            break
-        fi
-        # Backspace
-        if [[ $char == $'\177' ]]; then
-            if [ $char_count -gt 0 ]; then
-                char_count=$((char_count - 1))
-                password="${password%?}"
-                echo -n $'\b \b'
-            fi
-            continue
-        fi
-        # Любой другой символ
-        char_count=$((char_count + 1))
-        password+="$char"
-        echo -n "*"
-    done
-    
-    # Восстанавливаем настройки терминала
-    stty $stty_save
-    echo
-    
+    read -r -p "$(question "$prompt")" password
     echo "$password"
 }
 
@@ -201,10 +168,12 @@ show_config_summary() {
     local host="$2"
     local port="$3"
     local config_path="$4"
+    local password="$5"
     
     echo ""
     info "=== Сводка конфигурации ==="
     config_show "Сервер: $user@$host:$port"
+    config_show "Пароль: $password"
     config_show "Файл конфигурации на сервере: $config_path"
     config_show "SSH ключ: $SSH_DIR/id_rsa"
     config_show "Локальный конфиг: $CONFIG_DIR/ssh_tunnel"
@@ -219,10 +188,34 @@ confirm_configuration() {
     local host="$2"
     local port="$3"
     local config_path="$4"
+    local password="$5"
     
-    show_config_summary "$user" "$host" "$port" "$config_path"
+    show_config_summary "$user" "$host" "$port" "$config_path" "$password"
     
     read -r -p "$(question 'Все верно? Продолжить установку? (Y/n): ')" answer
+    case "${answer:-y}" in
+        y|Y|yes|YES|"")
+            return 0
+            ;;
+        *)
+            info "Установка отменена."
+            exit 0
+            ;;
+    esac
+}
+
+# Предупреждение о безопасности
+show_security_warning() {
+    echo ""
+    warning "=== ВАЖНО: ИНФОРМАЦИЯ О БЕЗОПАСНОСТИ ==="
+    warning "Пароль будет отображаться в открытом виде!"
+    warning "Убедитесь, что никто не видит ваш экран."
+    warning "После установки аутентификация будет по SSH ключу."
+    warning "Пароль используется только для первоначальной настройки."
+    warning "========================================"
+    echo ""
+    
+    read -r -p "$(question 'Понятно? Продолжить? (Y/n): ')" answer
     case "${answer:-y}" in
         y|Y|yes|YES|"")
             return 0
@@ -239,6 +232,9 @@ interactive_setup() {
     info "=== Настройка SSH туннеля ==="
     echo ""
     
+    # Показываем предупреждение о безопасности
+    show_security_warning
+    
     # Запрос параметров сервера
     SERVER_USER=$(input_with_default "Имя пользователя на сервере" "root")
     SERVER_HOST=$(input_with_default "Адрес сервера" "example.com")
@@ -254,10 +250,10 @@ interactive_setup() {
     config_show "Путь к конфигу: $SERVER_CONFIG_PATH"
     echo ""
     
-    # Запрос пароля
+    # Запрос пароля в открытом виде
     info "Теперь введите пароль для пользователя $SERVER_USER на сервере $SERVER_HOST"
-    info "Пароль будет скрыт звездочками (*) при вводе"
-    SERVER_PASSWORD=$(input_password "Пароль")
+    info "Пароль будет отображаться в открытом виде!"
+    SERVER_PASSWORD=$(input_password_visible "Пароль")
     
     # Проверяем что пароль не пустой
     if [ -z "$SERVER_PASSWORD" ]; then
@@ -265,11 +261,12 @@ interactive_setup() {
         exit 1
     fi
     
-    # Показываем длину парвода (но не сам пароль)
-    info "Длина пароля: ${#SERVER_PASSWORD} символов"
+    # Показываем введенный пароль
+    config_show "Введенный пароль: $SERVER_PASSWORD"
+    echo ""
     
     # Подтверждение конфигурации
-    confirm_configuration "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT" "$SERVER_CONFIG_PATH"
+    confirm_configuration "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT" "$SERVER_CONFIG_PATH" "$SERVER_PASSWORD"
     
     # Проверка подключения
     if ! test_ssh_connection "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT" "$SERVER_PASSWORD"; then
@@ -375,7 +372,7 @@ install_ssh_tunnel() {
     # Финальный summary
     echo ""
     success "=== Установка завершена! ==="
-    show_config_summary "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT" "$SERVER_CONFIG_PATH"
+    show_config_summary "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT" "$SERVER_CONFIG_PATH" "$SERVER_PASSWORD"
     
     echo "Команды управления:"
     echo "  Запуск: /etc/init.d/ssh_tunnel start"
@@ -386,9 +383,115 @@ install_ssh_tunnel() {
     echo "Логи: tail -f /var/log/ssh_tunnel.log"
     echo ""
     info "Туннель будет автоматически запускаться при загрузке системы"
+    info "Пароль использовался только для первоначальной настройки"
+    info "Теперь аутентификация работает по SSH ключу"
 }
 
-# ... остальные функции без изменений (uninstall, update, edit_config, show_help, main) ...
+# Удаление
+uninstall_ssh_tunnel() {
+    info "Удаление SSH Tunnel..."
+    
+    # Останавливаем службу
+    if [ -f "$INIT_DIR/ssh_tunnel" ]; then
+        "$INIT_DIR/ssh_tunnel" stop 2>/dev/null || true
+        "$INIT_DIR/ssh_tunnel" disable 2>/dev/null || true
+    fi
+    
+    # Удаляем файлы
+    rm -f "$INSTALL_DIR/ssh_tunnel.sh"
+    rm -f "$INIT_DIR/ssh_tunnel"
+    rm -f "$CONFIG_DIR/ssh_tunnel"
+    rm -f "$LOG_DIR/ssh_tunnel.log"
+    
+    # Предлагаем удалить SSH ключи
+    echo ""
+    if [ -f "$SSH_DIR/id_rsa" ]; then
+        read -r -p "$(question 'Удалить SSH ключи? (y/N): ')" answer
+        case "${answer:-n}" in
+            y|Y|yes|YES)
+                rm -f "$SSH_DIR/id_rsa" "$SSH_DIR/id_rsa.pub"
+                success "SSH ключи удалены"
+                ;;
+            *)
+                info "SSH ключи сохранены в $SSH_DIR/"
+                ;;
+        esac
+    fi
+    
+    success "SSH Tunnel удален"
+}
+
+# Обновление (без изменения конфигурации)
+update_ssh_tunnel() {
+    info "Обновление SSH Tunnel..."
+    
+    # Проверяем что конфигурация существует
+    if [ ! -f "$CONFIG_DIR/ssh_tunnel" ]; then
+        error "Конфигурация не найдена. Сначала выполните установку."
+        exit 1
+    fi
+    
+    # Останавливаем службу
+    if [ -f "$INIT_DIR/ssh_tunnel" ]; then
+        "$INIT_DIR/ssh_tunnel" stop 2>/dev/null || true
+    fi
+    
+    # Загружаем новые версии файлов
+    download_file "$REPO_URL/src/ssh_tunnel.sh" "$INSTALL_DIR/ssh_tunnel.sh.tmp"
+    download_file "$REPO_URL/src/ssh_tunnel.init" "$INIT_DIR/ssh_tunnel.tmp"
+    
+    # Проверяем что загрузка успешна перед заменой
+    if [ -f "$INSTALL_DIR/ssh_tunnel.sh.tmp" ] && [ -f "$INIT_DIR/ssh_tunnel.tmp" ]; then
+        mv "$INSTALL_DIR/ssh_tunnel.sh.tmp" "$INSTALL_DIR/ssh_tunnel.sh"
+        mv "$INIT_DIR/ssh_tunnel.tmp" "$INIT_DIR/ssh_tunnel"
+        
+        chmod +x "$INSTALL_DIR/ssh_tunnel.sh"
+        chmod +x "$INIT_DIR/ssh_tunnel"
+        
+        success "Файлы обновлены"
+        
+        # Запускаем служба
+        "$INIT_DIR/ssh_tunnel" start
+        success "Служба запущена"
+    else
+        error "Ошибка при обновлении файлов"
+        exit 1
+    fi
+}
+
+# Редактирование конфигурации
+edit_config() {
+    if [ -f "$CONFIG_DIR/ssh_tunnel" ]; then
+        info "Редактирование конфигурации..."
+        ${EDITOR:-nano} "$CONFIG_DIR/ssh_tunnel"
+        success "Конфигурация обновлена"
+        
+        # Перезапускаем службу
+        "$INIT_DIR/ssh_tunnel" restart
+        success "Служба перезапущена"
+    else
+        error "Конфигурация не найдена. Сначала выполните установку."
+        exit 1
+    fi
+}
+
+# Показать помощь
+show_help() {
+    echo -e "${BLUE}SSH Tunnel Installer для OpenWRT${NC}"
+    echo ""
+    echo "Использование:"
+    echo "  sh <(wget -O - $REPO_URL/install.sh)           - Интерактивная установка"
+    echo "  sh <(wget -O - $REPO_URL/install.sh) install   - Установка"
+    echo "  sh <(wget -O - $REPO_URL/install.sh) update    - Обновление"
+    echo "  sh <(wget -O - $REPO_URL/install.sh) config    - Редактирование конфигурации"
+    echo "  sh <(wget -O - $REPO_URL/install.sh) uninstall - Удаление"
+    echo "  sh <(wget -O - $REPO_URL/install.sh) help      - Помощь"
+    echo ""
+    echo "Требования:"
+    echo "  - OpenWRT система"
+    echo "  - wget или curl"
+    echo "  - Доступ в интернет"
+}
 
 # Главная функция
 main() {
