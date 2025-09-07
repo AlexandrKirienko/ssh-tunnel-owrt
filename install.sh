@@ -3,7 +3,7 @@
 set -e
 
 # Константы
-REPO_URL="https://raw.githubusercontent.com/username/ssh-tunnel-owrt/master"
+REPO_URL="https://raw.githubusercontent.com/AlexandrKirienko/ssh-tunnel-owrt/master"
 INSTALL_DIR="/root"
 CONFIG_DIR="/etc/config"
 INIT_DIR="/etc/init.d"
