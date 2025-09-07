@@ -45,28 +45,44 @@ download_file() {
     local max_retries=3
     local retry=0
     
-    info "Загрузка: $url"
+    info "Загрузка: $(basename "$output")"
     
     while [ $retry -lt $max_retries ]; do
         case $DOWNLOAD_TOOL in
             wget)
-                wget --timeout=30 --tries=3 -q "$url" -O "$output" && return 0
+                # Для OpenWRT используем совместимый синтаксис
+                if wget -h 2>&1 | grep -q "tries"; then
+                    # Полная версия wget
+                    wget --timeout=30 --tries=2 -q "$url" -O "$output" 2>/dev/null && return 0
+                else
+                    # Busybox wget
+                    wget -T 30 -q "$url" -O "$output" 2>/dev/null && return 0
+                fi
                 ;;
             curl)
-                curl --connect-timeout 30 --retry 3 -s -L "$url" -o "$output" && return 0
+                curl --connect-timeout 30 --retry 2 -s -L "$url" -o "$output" 2>/dev/null && return 0
                 ;;
         esac
         
         retry=$((retry + 1))
-        warning "Попытка $retry из $max_retries не удалась, повтор через 2 секунды..."
-        sleep 2
+        if [ $retry -lt $max_retries ]; then
+            warning "Попытка $retry не удалась, повтор через 2 секунды..."
+            sleep 2
+        fi
     done
     
-    error "Не удалось загрузить файл: $url"
-    error "Проверьте:"
-    error "1. Правильность URL: $url"
-    error "2. Наличие файла в репозитории"
-    error "3. Доступ в интернет"
+    error "Не удалось загрузить файл: $(basename "$output")"
+    
+    # Диагностика
+    if [ "$DOWNLOAD_TOOL" = "wget" ]; then
+        info "Проверка доступности URL..."
+        if wget -T 10 -O /dev/null --spider "$url" 2>/dev/null; then
+            info "URL доступен, но загрузка не удалась"
+        else
+            info "URL недоступен"
+        fi
+    fi
+    
     return 1
 }
 
