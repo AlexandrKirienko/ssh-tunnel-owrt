@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Конфигурация
 LOG_FILE="/var/log/ssh_tunnel.log"
@@ -49,6 +50,9 @@ run_on_server() {
 
 # Функция для получения портов из конфига на сервере
 get_tunnel_ports() {
+    # echo "10001 11001"
+    # retutn 0
+
     ROUTER_MAC=$(get_mac_address)
     ROUTER_HOSTNAME=$(get_hostname)
     
