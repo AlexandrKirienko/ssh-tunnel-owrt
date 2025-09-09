@@ -220,33 +220,19 @@ interactive_setup() {
     
     # Запрос параметров сервера
     SERVER_USER=$(input_with_default "Имя пользователя на сервере" "root")
-    SERVER_HOST=$(input_with_default "Адрес сервера" "example.com")
+    SERVER_PASSWORD=$(input_with_default "Пароль" )
+	SERVER_HOST=$(input_with_default "Адрес сервера" "example.com")
     SERVER_PORT=$(input_with_default "SSH порт сервера" "22")
     SERVER_CONFIG_PATH=$(input_with_default "Путь к файлу конфигурации на сервере" "/home/user/tunnel_configs.txt")
-    
-    # Показываем введенные параметры
-    echo ""
-    info "Введенные параметры:"
-    config_show "Пользователь: $SERVER_USER"
-    config_show "Сервер: $SERVER_HOST"
-    config_show "Порт: $SERVER_PORT"
-    config_show "Путь к конфигу: $SERVER_CONFIG_PATH"
-    echo ""
-    
-    # Запрос пароля в открытом виде
-    info "Теперь введите пароль для пользователя $SERVER_USER на сервере $SERVER_HOST"
-    info "Пароль будет отображаться в открытом виде!"
-    SERVER_PASSWORD=$(input_password_visible "Пароль")
-    
-    # Проверяем что пароль не пустой
+	# Проверяем что пароль не пустой
     if [ -z "$SERVER_PASSWORD" ]; then
         error "Пароль не может быть пустым!"
         exit 1
     fi
     
-    # Показываем введенный пароль
-    config_show "Введенный пароль: $SERVER_PASSWORD"
+    # Показываем введенные параметры
     echo ""
+  
     
     # Подтверждение конфигурации
     confirm_configuration "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT" "$SERVER_CONFIG_PATH" "$SERVER_PASSWORD"
@@ -272,7 +258,7 @@ config tunnel 'settings'
 EOF
     
     success "Конфигурация сохранена в $CONFIG_DIR/ssh_tunnel"
-    warning "Пароль сохранен в конфигурационном файле в открытом виде!"
+
 }
 
 # Установка зависимостей
@@ -422,9 +408,6 @@ install_ssh_tunnel() {
         warning "Не удалось загрузить init скрипт, создаем локально"
     fi
     
-    # Создаем недостающие файлы
-    create_missing_files
-    
     # Создаем log файл
     touch "$LOG_DIR/ssh_tunnel.log"
     chmod 644 "$LOG_DIR/ssh_tunnel.log"
@@ -480,57 +463,6 @@ uninstall_ssh_tunnel() {
     success "SSH Tunnel удален"
 }
 
-# Обновление
-update_ssh_tunnel() {
-    info "Обновление SSH Tunnel..."
-    
-    # Проверяем что конфигурация существует
-    if [ ! -f "$CONFIG_DIR/ssh_tunnel" ]; then
-        error "Конфигурация не найдена. Сначала выполните установку."
-        exit 1
-    fi
-    
-    # Останавливаем службу
-    if [ -f "$INIT_DIR/ssh_tunnel" ]; then
-        "$INIT_DIR/ssh_tunnel" stop 2>/dev/null || true
-    fi
-    
-    # Загружаем новые версии файлов
-    info "Обновление файлов..."
-    
-    if download_file "$REPO_URL/src/ssh_tunnel.sh" "$INSTALL_DIR/ssh_tunnel.sh.new"; then
-        mv "$INSTALL_DIR/ssh_tunnel.sh.new" "$INSTALL_DIR/ssh_tunnel.sh"
-        chmod +x "$INSTALL_DIR/ssh_tunnel.sh"
-        success "Основной скрипт обновлен"
-    fi
-    
-    if download_file "$REPO_URL/src/ssh_tunnel.init" "$INIT_DIR/ssh_tunnel.new"; then
-        mv "$INIT_DIR/ssh_tunnel.new" "$INIT_DIR/ssh_tunnel"
-        chmod +x "$INIT_DIR/ssh_tunnel"
-        success "Init скрипт обновлен"
-    fi
-    
-    # Запускаем службу
-    "$INIT_DIR/ssh_tunnel" start
-    success "Служба запущена"
-}
-
-# Редактирование конфигурации
-edit_config() {
-    if [ -f "$CONFIG_DIR/ssh_tunnel" ]; then
-        info "Редактирование конфигурации..."
-        ${EDITOR:-nano} "$CONFIG_DIR/ssh_tunnel"
-        success "Конфигурация обновлена"
-        
-        # Перезапускаем службу
-        "$INIT_DIR/ssh_tunnel" restart
-        success "Служба перезапущена"
-    else
-        error "Конфигурация не найдена. Сначала выполните установку."
-        exit 1
-    fi
-}
-
 # Показать помощь
 show_help() {
     echo -e "${BLUE}SSH Tunnel Installer для OpenWRT${NC}"
@@ -557,12 +489,6 @@ main() {
             ;;
         uninstall)
             uninstall_ssh_tunnel
-            ;;
-        update)
-            update_ssh_tunnel
-            ;;
-        config)
-            edit_config
             ;;
         help|--help|-h)
             show_help
