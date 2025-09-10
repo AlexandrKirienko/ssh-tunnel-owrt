@@ -66,11 +66,12 @@ get_tunnel_ports() {
     #retutn 0
 
     if [ -n "$result" ]; then
-        local temp_result="$result"
-        IFS=',' read -r ssh_port web_port <<EOF
-        $temp_result
-        EOF
+
         #echo "$result" | IFS=',' read -r ssh_port web_port
+
+        local ssh_port=$(echo "$result" | awk '{print $1}')
+        local web_port=$(echo "$result" | awk '{print $2}')
+        
         log "Найдены существующие порты: SSH=$ssh_port, WEB=$web_port, Hostname: $ROUTER_HOSTNAME"
         echo "$ssh_port $web_port"
         return 0
