@@ -60,18 +60,22 @@ get_tunnel_ports() {
     
     local result=$(run_on_server "python3 "$PYTHON_SCRIPT" "$MAC_ADDRESS" "$HOSTNAME" 2>&1")
 
-    if [ -n "$result" ]; then
-        IFS=',' read -r ssh_port luci_port <<< "$result" 
-        log "Найдены существующие порты: SSH=$ssh_port, WEB=$web_port, Hostname: $ROUTER_HOSTNAME"
-        echo "$ssh_port $web_port"
-        return 0
-    else
-        log "Ошибка при добавлении записи на сервер"
-        return 1
-    fi
+    log "$result" 
+
+    echo "10001 11001"
+
+    #if [ -n "$result" ]; then
+    #    IFS=',' read -r ssh_port luci_port <<< "$result" 
+    #    log "Найдены существующие порты: SSH=$ssh_port, WEB=$web_port, Hostname: $ROUTER_HOSTNAME"
+    #    echo "$ssh_port $web_port"
+    #    return 0
+    #else
+    #    log "Ошибка при добавлении записи на сервер"
+    #    return 1
+    #fi
 
     
-    # retutn 0
+     retutn 0
 
 
     
