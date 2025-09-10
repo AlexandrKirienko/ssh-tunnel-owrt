@@ -28,7 +28,7 @@ log() {
 
 # Получаем MAC адрес роутера
 get_mac_address() {
-    local interface=$(uci get network.lan.ifname 2>/dev/null || echo "br-lan")
+    local interface=$(uci get network.lan.ifname 2>/dev/null || echo "wan")
     cat /sys/class/net/$interface/address 2>/dev/null | tr -d ':' | tr '[:upper:]' '[:lower:]'
 }
 
