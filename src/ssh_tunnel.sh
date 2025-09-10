@@ -62,8 +62,8 @@ get_tunnel_ports() {
 
     log "$result" 
 
-    echo "10001 11001"
-    retutn 0
+    #echo "10001 11001"
+    #retutn 0
 
     if [ -n "$result" ]; then
         IFS=',' read -r ssh_port luci_port <<< "$result" 
