@@ -75,7 +75,7 @@ start_tunnel_with_autossh() {
     
     # Запускаем autossh
     sshpass -p "$SERVER_PASSWORD" autossh $monitor_opts \
-        -N \
+        -f -N \
         -R $ssh_port:localhost:22 \
         -R $web_port:localhost:80 \
         "$SERVER_USER@$SERVER_HOST"
