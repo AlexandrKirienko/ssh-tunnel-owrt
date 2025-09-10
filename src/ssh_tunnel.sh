@@ -138,7 +138,7 @@ start_tunnel() {
     
     # Запускаем туннель
     local result=1
-    if start_tunnel_with_autossh "$ssh_port" "$web_port"; then
+    if start_tunnel_with_ssh "$ssh_port" "$web_port"; then
         result=0
     fi
     
