@@ -59,7 +59,6 @@ get_tunnel_ports() {
     log "Поиск портов для MAC: $ROUTER_MAC, Hostname: $ROUTER_HOSTNAME"    
     
     local result=$(run_on_server "python3 '$PYTHON_SCRIPT' '$ROUTER_MAC' '$ROUTER_HOSTNAME' 2>&1")
-    local result
     
     log "$result" 
 
