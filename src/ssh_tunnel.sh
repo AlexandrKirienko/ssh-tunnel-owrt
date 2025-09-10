@@ -63,6 +63,7 @@ get_tunnel_ports() {
     log "$result" 
 
     echo "10001 11001"
+    retutn 0
 
     #if [ -n "$result" ]; then
     #    IFS=',' read -r ssh_port luci_port <<< "$result" 
@@ -73,72 +74,7 @@ get_tunnel_ports() {
     #    log "Ошибка при добавлении записи на сервер"
     #    return 1
     #fi
-
     
-     retutn 0
-
-
-    
-    # Ищем запись с нашим MAC адресом
-    local line=$(run_on_server "grep -i '^$ROUTER_MAC' '$SERVER_CONFIG_PATH' 2>/dev/null")
-    
-    if [ -n "$line" ]; then
-        local ssh_port=$(echo "$line" | awk '{print $2}')
-        local web_port=$(echo "$line" | awk '{print $3}')
-        local stored_hostname=$(echo "$line" | awk '{print $4}')
-        
-        # Обновляем hostname если он изменился
-        if [ -n "$stored_hostname" ] && [ "$stored_hostname" != "$ROUTER_HOSTNAME" ]; then
-            log "Hostname изменился: '$stored_hostname' -> '$ROUTER_HOSTNAME', обновляем запись"
-            run_on_server "sed -i 's/^$ROUTER_MAC .*/$ROUTER_MAC $ssh_port $web_port $ROUTER_HOSTNAME/' '$SERVER_CONFIG_PATH'"
-        fi
-        
-        if [ -n "$ssh_port" ] && [ "$ssh_port" -ge 2200 ] && [ "$ssh_port" -le 2299 ] && \
-           [ -n "$web_port" ] && [ "$web_port" -ge 8000 ] && [ "$web_port" -le 8099 ]; then
-            log "Найдены существующие порты: SSH=$ssh_port, WEB=$web_port, Hostname: $ROUTER_HOSTNAME"
-            echo "$ssh_port $web_port"
-            return 0
-        fi
-    fi
-    
-    log "Запись не найдена или некорректна, ищем следующие доступные порты"
-    
-    # Получаем последние использованные порты
-    local last_ssh_port=$(run_on_server "grep -v '^#' '$SERVER_CONFIG_PATH' 2>/dev/null | awk '{print \$2}' | sort -n | tail -1")
-    local last_web_port=$(run_on_server "grep -v '^#' '$SERVER_CONFIG_PATH' 2>/dev/null | awk '{print \$3}' | sort -n | tail -1")
-    
-    # Устанавливаем начальные значения если порты не найдены
-    if [ -z "$last_ssh_port" ] || [ "$last_ssh_port" -lt 2200 ]; then
-        last_ssh_port=2199
-    fi
-    if [ -z "$last_web_port" ] || [ "$last_web_port" -lt 8000 ]; then
-        last_web_port=7999
-    fi
-    
-    local new_ssh_port=$((last_ssh_port + 1))
-    local new_web_port=$((last_web_port + 1))
-    
-    # Проверяем, что порты в допустимых диапазонах
-    if [ "$new_ssh_port" -gt 2299 ]; then
-        log "Ошибка: Достигнут лимит SSH портов (2299)"
-        return 1
-    fi
-    if [ "$new_web_port" -gt 8099 ]; then
-        log "Ошибка: Достигнут лимит WEB портов (8099)"
-        return 1
-    fi
-    
-    # Добавляем новую запись на сервер с hostname
-    run_on_server "echo '$ROUTER_MAC $new_ssh_port $new_web_port $ROUTER_HOSTNAME' >> '$SERVER_CONFIG_PATH'"
-    
-    if [ $? -eq 0 ]; then
-        log "Добавлена новая запись: $ROUTER_MAC -> SSH:$new_ssh_port WEB:$new_web_port Hostname:$ROUTER_HOSTNAME"
-        echo "$new_ssh_port $new_web_port"
-        return 0
-    else
-        log "Ошибка при добавлении записи на сервер"
-        return 1
-    fi
 }
 
 # Запуск туннеля с autossh
