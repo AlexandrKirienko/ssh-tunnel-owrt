@@ -61,7 +61,6 @@ get_tunnel_ports() {
     local result=$(run_on_server "python3 "$PYTHON_SCRIPT" "$MAC_ADDRESS" "$HOSTNAME" 2>&1")
 
     if [ -n "$result" ]; then
-        # Разделяем результат на порты
         IFS=',' read -r ssh_port luci_port <<< "$result" 
         log "Найдены существующие порты: SSH=$ssh_port, WEB=$web_port, Hostname: $ROUTER_HOSTNAME"
         echo "$ssh_port $web_port"
