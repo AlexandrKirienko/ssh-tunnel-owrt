@@ -5,7 +5,7 @@ set -x
 LOG_FILE="/var/log/ssh_tunnel.log"
 PID_FILE="/var/run/ssh_tunnel.pid"
 CONFIG_FILE="/etc/config/ssh_tunnel"
-PYTHON_SCRIPT="/home/root/router_manager.py"
+PYTHON_SCRIPT="/root/router_manager.py"
 
 # Загрузка конфигурации из UCI
 load_config() {
