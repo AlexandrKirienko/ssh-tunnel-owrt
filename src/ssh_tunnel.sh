@@ -5,6 +5,7 @@ set -x
 LOG_FILE="/var/log/ssh_tunnel.log"
 PID_FILE="/var/run/ssh_tunnel.pid"
 CONFIG_FILE="/etc/config/ssh_tunnel"
+PYTHON_SCRIPT="/home/root/router_manager.py"
 
 # Загрузка конфигурации из UCI
 load_config() {
@@ -51,12 +52,29 @@ run_on_server() {
 # Функция для получения портов из конфига на сервере
 get_tunnel_ports() {
     # echo "10001 11001"
-    # retutn 0
-
+    
     ROUTER_MAC=$(get_mac_address)
     ROUTER_HOSTNAME=$(get_hostname)
     
-    log "Поиск портов для MAC: $ROUTER_MAC, Hostname: $ROUTER_HOSTNAME"
+    log "Поиск портов для MAC: $ROUTER_MAC, Hostname: $ROUTER_HOSTNAME"    
+    
+    local result=$(run_on_server "python3 "$PYTHON_SCRIPT" "$MAC_ADDRESS" "$HOSTNAME" 2>&1")
+
+    if [ -n "$result" ]; then
+        # Разделяем результат на порты
+        IFS=',' read -r ssh_port luci_port <<< "$result" 
+        log "Найдены существующие порты: SSH=$ssh_port, WEB=$web_port, Hostname: $ROUTER_HOSTNAME"
+        echo "$ssh_port $web_port"
+        return 0
+    else
+        log "Ошибка при добавлении записи на сервер"
+        return 1
+    fi
+
+    
+    # retutn 0
+
+
     
     # Ищем запись с нашим MAC адресом
     local line=$(run_on_server "grep -i '^$ROUTER_MAC' '$SERVER_CONFIG_PATH' 2>/dev/null")
