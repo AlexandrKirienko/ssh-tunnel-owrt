@@ -66,7 +66,7 @@ get_tunnel_ports() {
     #retutn 0
 
     if [ -n "$result" ]; then
-        IFS=',' read -r ssh_port web_port <<< "$result" 
+        echo "$result" | IFS=',' read -r ssh_port web_port
         log "Найдены существующие порты: SSH=$ssh_port, WEB=$web_port, Hostname: $ROUTER_HOSTNAME"
         echo "$ssh_port $web_port"
         return 0
