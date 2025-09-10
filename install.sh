@@ -209,6 +209,15 @@ install_dependencies() {
             exit 1
         }
     fi
+
+    if ! command -v autossh >/dev/null 2>&1; then
+        info "Установка autossh для автоподключения"
+        opkg update
+        opkg install autossh || {
+            error "Не удалось установить autossh. Обязательно для работы!"
+            exit 1
+        }
+    fi
     
     success "Зависимости проверены"
 }
