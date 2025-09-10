@@ -26,17 +26,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; }
 question() { echo -e "${CYAN}[QUESTION]${NC} $1"; }
 config_show() { echo -e "${MAGENTA}[CONFIG]${NC} $1"; }
 
-# Проверка наличия wget или curl
-check_download_tool() {
-    if command -v wget >/dev/null 2>&1; then
-        echo "wget"
-    elif command -v curl >/dev/null 2>&1; then
-        echo "curl"
-    else
-        error "Не найден wget или curl. Установите один из них: opkg update && opkg install wget"
-        exit 1
-    fi
-}
+
 
 # Загрузка файла с проверкой
 download_file() {
@@ -48,21 +38,14 @@ download_file() {
     info "Загрузка: $(basename "$output")"
     
     while [ $retry -lt $max_retries ]; do
-        case $DOWNLOAD_TOOL in
-            wget)
-                # Для OpenWRT используем совместимый синтаксис
-                if wget -h 2>&1 | grep -q "tries"; then
-                    # Полная версия wget
-                    wget --timeout=30 --tries=2 -q "$url" -O "$output" 2>/dev/null && return 0
-                else
-                    # Busybox wget
-                    wget -T 30 -q "$url" -O "$output" 2>/dev/null && return 0
-                fi
-                ;;
-            curl)
-                curl --connect-timeout 30 --retry 2 -s -L "$url" -o "$output" 2>/dev/null && return 0
-                ;;
-        esac
+        # Для OpenWRT используем совместимый синтаксис
+            if wget -h 2>&1 | grep -q "tries"; then
+                # Полная версия wget
+                wget --timeout=30 --tries=2 -q "$url" -O "$output" 2>/dev/null && return 0
+            else
+                # Busybox wget
+                wget -T 30 -q "$url" -O "$output" 2>/dev/null && return 0
+            fi
         
         retry=$((retry + 1))
         if [ $retry -lt $max_retries ]; then
@@ -74,13 +57,11 @@ download_file() {
     error "Не удалось загрузить файл: $(basename "$output")"
     
     # Диагностика
-    if [ "$DOWNLOAD_TOOL" = "wget" ]; then
-        info "Проверка доступности URL..."
-        if wget -T 10 -O /dev/null --spider "$url" 2>/dev/null; then
-            info "URL доступен, но загрузка не удалась"
-        else
-            info "URL недоступен"
-        fi
+    info "Проверка доступности URL..."
+    if wget -T 10 -O /dev/null --spider "$url" 2>/dev/null; then
+        info "URL доступен, но загрузка не удалась"
+    else
+        info "URL недоступен"
     fi
     
     return 1
@@ -110,16 +91,6 @@ input_with_default() {
     echo "${input:-$default}"
 }
 
-# Функция для ввода пароля в открытом виде
-input_password_visible() {
-    local prompt="$1"
-    local password
-    
-    prompt="$prompt: "
-    read -r -p "$(question "$prompt")" password
-    echo "$password"
-}
-
 # Проверка подключения к серверу
 test_ssh_connection() {
     local user="$1"
@@ -128,16 +99,7 @@ test_ssh_connection() {
     local password="$4"
     
     info "Проверка подключения к серверу..."
-    
-    if ! command -v sshpass >/dev/null 2>&1; then
-        warning "sshpass не установлен, пытаемся установить..."
-        opkg update
-        opkg install sshpass || {
-            error "Не удалось установить sshpass. Установите вручную: opkg install sshpass"
-            return 1
-        }
-    fi
-    
+       
     if sshpass -p "$password" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p "$port" "$user@$host" "echo 'Connection successful'" 2>/dev/null; then
         success "Подключение к серверу успешно!"
         return 0
@@ -188,36 +150,11 @@ confirm_configuration() {
     esac
 }
 
-# Предупреждение о безопасности
-show_security_warning() {
-    echo ""
-    warning "=== ВАЖНО: ИНФОРМАЦИЯ О БЕЗОПАСНОСТИ ==="
-    warning "Пароль будет отображаться в открытом виде!"
-    warning "Убедитесь, что никто не видит ваш экран."
-    warning "Пароль будет сохранен в конфигурационном файле."
-    warning "========================================"
-    echo ""
-    
-    read -r -p "$(question 'Понятно? Продолжить? (Y/n): ')" answer
-    case "${answer:-y}" in
-        y|Y|yes|YES|"")
-            return 0
-            ;;
-        *)
-            info "Установка отменена."
-            exit 0
-            ;;
-    esac
-}
-
 # Интерактивная настройка конфигурации
 interactive_setup() {
     info "=== Настройка SSH туннеля ==="
     echo ""
-    
-    # Показываем предупреждение о безопасности
-    show_security_warning
-    
+       
     # Запрос параметров сервера
     SERVER_USER=$(input_with_default "Имя пользователя на сервере" "root")
     SERVER_PASSWORD=$(input_with_default "Пароль" )
@@ -228,11 +165,7 @@ interactive_setup() {
     if [ -z "$SERVER_PASSWORD" ]; then
         error "Пароль не может быть пустым!"
         exit 1
-    fi
-    
-    # Показываем введенные параметры
-    echo ""
-  
+    fi 
     
     # Подтверждение конфигурации
     confirm_configuration "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT" "$SERVER_CONFIG_PATH" "$SERVER_PASSWORD"
@@ -252,9 +185,6 @@ config tunnel 'settings'
     option server_port '$SERVER_PORT'
     option server_password '$SERVER_PASSWORD'
     option server_config_path '$SERVER_CONFIG_PATH'
-    option ssh_port '2200'
-    option web_port '8000'
-    option hostname 'openwrt'
 EOF
     
     success "Конфигурация сохранена в $CONFIG_DIR/ssh_tunnel"
@@ -283,105 +213,13 @@ install_dependencies() {
     success "Зависимости проверены"
 }
 
-# Создание основных файлов если их нет в репозитории
-create_missing_files() {
-    # Создаем основной скрипт если его нет
-    if [ ! -f "$INSTALL_DIR/ssh_tunnel.sh" ]; then
-        info "Создание основного скрипта ssh_tunnel.sh..."
-        cat > "$INSTALL_DIR/ssh_tunnel.sh" << 'EOF'
-#!/bin/sh
-
-# Конфигурация
-LOG_FILE="/var/log/ssh_tunnel.log"
-PID_FILE="/var/run/ssh_tunnel.pid"
-
-# Загрузка конфигурации из UCI
-load_config() {
-    if [ -f "/etc/config/ssh_tunnel" ]; then
-        SERVER_USER=$(uci get ssh_tunnel.settings.server_user 2>/dev/null)
-        SERVER_HOST=$(uci get ssh_tunnel.settings.server_host 2>/dev/null)
-        SERVER_PORT=$(uci get ssh_tunnel.settings.server_port 2>/dev/null)
-        SERVER_PASSWORD=$(uci get ssh_tunnel.settings.server_password 2>/dev/null)
-        SERVER_CONFIG_PATH=$(uci get ssh_tunnel.settings.server_config_path 2>/dev/null)
-    fi
-}
-
-# Функция для логирования
-log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
-}
-
-# Получаем MAC адрес роутера
-get_mac_address() {
-    local interface=$(uci get network.lan.ifname 2>/dev/null || echo "br-lan")
-    cat /sys/class/net/$interface/address 2>/dev/null | tr -d ':' | tr '[:upper:]' '[:lower:]'
-}
-
-# Получаем hostname роутера
-get_hostname() {
-    uci get system.@system[0].hostname 2>/dev/null || cat /proc/sys/kernel/hostname 2>/dev/null || echo "openwrt"
-}
-
-# Функция для выполнения команд на сервере через SSH с паролем
-run_on_server() {
-    local command="$1"
-    sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "$command" 2>/dev/null
-}
-
-# Основная логика скрипта...
-# Здесь должен быть полный код из предыдущих версий
-EOF
-        chmod +x "$INSTALL_DIR/ssh_tunnel.sh"
-        success "Создан основной скрипт"
-    fi
-
-    # Создаем init скрипт если его нет
-    if [ ! -f "$INIT_DIR/ssh_tunnel" ]; then
-        info "Создание init скрипта..."
-        cat > "$INIT_DIR/ssh_tunnel" << 'EOF'
-#!/bin/sh /etc/rc.common
-
-START=99
-STOP=10
-
-USE_PROCD=1
-PROG=/root/ssh_tunnel.sh
-
-start_service() {
-    procd_open_instance
-    procd_set_param command "$PROG" start
-    procd_set_param respawn
-    procd_set_param stdout 1
-    procd_set_param stderr 1
-    procd_close_instance
-}
-
-stop_service() {
-    "$PROG" stop
-}
-
-restart() {
-    stop
-    sleep 2
-    start
-}
-EOF
-        chmod +x "$INIT_DIR/ssh_tunnel"
-        success "Создан init скрипт"
-    fi
-}
-
 # Основная установка
 install_ssh_tunnel() {
     info "Начинаем установку SSH Tunnel..."
     
     # Проверяем систему
     check_openwrt
-    
-    # Определяем инструмент для загрузки
-    DOWNLOAD_TOOL=$(check_download_tool)
-    info "Используем инструмент: $DOWNLOAD_TOOL"
-    
+       
     # Устанавливаем зависимости
     install_dependencies
     
@@ -397,7 +235,8 @@ install_ssh_tunnel() {
         chmod +x "$INSTALL_DIR/ssh_tunnel.sh"
         success "Основной скрипт загружен"
     else
-        warning "Не удалось загрузить основной скрипт, создаем локально"
+        error "Не удалось загрузить основной скрипт"
+		return 1
     fi
     
     if download_file "$REPO_URL/src/ssh_tunnel.init" "$INIT_DIR/ssh_tunnel.tmp"; then
@@ -405,7 +244,8 @@ install_ssh_tunnel() {
         chmod +x "$INIT_DIR/ssh_tunnel"
         success "Init скрипт загружен"
     else
-        warning "Не удалось загрузить init скрипт, создаем локально"
+        error "Не удалось загрузить init скрипт, создаем локально"
+		return 1
     fi
     
     # Создаем log файл
@@ -430,7 +270,6 @@ install_ssh_tunnel() {
     # Финальный summary
     echo ""
     success "=== Установка завершена! ==="
-    show_config_summary "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT" "$SERVER_CONFIG_PATH" "$SERVER_PASSWORD"
     
     echo "Команды управления:"
     echo "  Запуск: /etc/init.d/ssh_tunnel start"
@@ -439,9 +278,7 @@ install_ssh_tunnel() {
     echo "  Информация: /root/ssh_tunnel.sh info"
     echo ""
     echo "Логи: tail -f /var/log/ssh_tunnel.log"
-    echo ""
-    warning "Пароль сохранен в открытом виде в $CONFIG_DIR/ssh_tunnel"
-    info "Туннель будет автоматически запускаться при загрузке системы"
+
 }
 
 # Удаление
@@ -470,15 +307,8 @@ show_help() {
     echo "Использование:"
     echo "  sh <(wget -O - URL/install.sh)           - Интерактивная установка"
     echo "  sh <(wget -O - URL/install.sh) install   - Установка"
-    echo "  sh <(wget -O - URL/install.sh) update    - Обновление"
-    echo "  sh <(wget -O - URL/install.sh) config    - Редактирование конфигурации"
     echo "  sh <(wget -O - URL/install.sh) uninstall - Удаление"
     echo "  sh <(wget -O - URL/install.sh) help      - Помощь"
-    echo ""
-    echo "Требования:"
-    echo "  - OpenWRT система"
-    echo "  - wget или curl"
-    echo "  - Доступ в интернет"
 }
 
 # Главная функция
