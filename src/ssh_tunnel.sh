@@ -75,17 +75,10 @@ start_tunnel_with_autossh() {
     
     # Запускаем autossh
     sshpass -p "$SERVER_PASSWORD" autossh $monitor_opts \
-        -f -N -T \
-        -o ServerAliveInterval=60 \
-        -o ServerAliveCountMax=3 \
-        -o ExitOnForwardFailure=yes \
-        -o StrictHostKeyChecking=no \
-        -o ConnectTimeout=$SSH_TIMEOUT \
-        -p "$SERVER_PORT" \
+        -N \
         -R $ssh_port:localhost:22 \
         -R $web_port:localhost:80 \
         "$SERVER_USER@$SERVER_HOST"
-    
     return $?
 }
 
@@ -145,17 +138,8 @@ start_tunnel() {
     
     # Запускаем туннель
     local result=1
-    if [ "$USE_AUTOSSH" = "1" ] && command -v autossh >/dev/null 2>&1; then
-        if start_tunnel_with_autossh "$ssh_port" "$web_port"; then
-            result=0
-        fi
-    fi
-    
-    # Если autossh не сработал, пробуем обычный ssh
-    if [ $result -ne 0 ]; then
-        if start_tunnel_with_ssh "$ssh_port" "$web_port"; then
-            result=0
-        fi
+    if start_tunnel_with_autossh "$ssh_port" "$web_port"; then
+        result=0
     fi
     
     if [ $result -eq 0 ]; then
