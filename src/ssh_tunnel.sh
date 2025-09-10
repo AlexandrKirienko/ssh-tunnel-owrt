@@ -59,14 +59,15 @@ get_tunnel_ports() {
     log "Поиск портов для MAC: $ROUTER_MAC, Hostname: $ROUTER_HOSTNAME"    
     
     local result=$(run_on_server "python3 '$PYTHON_SCRIPT' '$ROUTER_MAC' '$ROUTER_HOSTNAME' 2>&1")
-
+    local result
+    
     log "$result" 
 
     #echo "10001 11001"
     #retutn 0
 
     if [ -n "$result" ]; then
-        IFS=',' read -r ssh_port luci_port <<< "$result" 
+        IFS=',' read -r ssh_port web_port <<< "$result" 
         log "Найдены существующие порты: SSH=$ssh_port, WEB=$web_port, Hostname: $ROUTER_HOSTNAME"
         echo "$ssh_port $web_port"
         return 0
