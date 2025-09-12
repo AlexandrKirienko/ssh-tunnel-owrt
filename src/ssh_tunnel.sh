@@ -76,20 +76,11 @@ get_hostname() {
     uci get system.@system[0].hostname 2>/dev/null || cat /proc/sys/kernel/hostname 2>/dev/null || echo "openwrt"
 }
 
-# Функция для выполнения команд на сервере через SSH с паролем
-run_on_server() {
-    local command="$1"
-       
-    sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "$command" 2>/dev/null
-}
-
 run_on_server_key() {
     local command="$1"
 	      
     ssh -p "$SERVER_PORT" -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" "$command" 2>/dev/null
 }
-
-
 
 # Функция для получения портов из конфига на сервере
 get_tunnel_ports() {
@@ -105,53 +96,6 @@ get_tunnel_ports() {
         
 }
 
-# Запуск туннеля с autossh
-start_tunnel_with_autossh() {
-    local ssh_port="$1"
-    local web_port="$2"
-    
-    log "Запуск туннеля с autossh: SSH=$ssh_port, WEB=$web_port"
-    
-    # Определяем порт для мониторинга
-    local monitor_opts=""
-    if [ "$MONITOR_PORT" != "0" ] && [ -n "$MONITOR_PORT" ]; then
-        monitor_opts="-M $MONITOR_PORT"
-    else
-        # Автоматический выбор порта мониторинга
-        monitor_opts="-M 0"
-    fi
-    
-    # Запускаем autossh
-    sshpass -p "$SERVER_PASSWORD" autossh $monitor_opts \
-        -f -N \
-        -R $ssh_port:localhost:22 \
-        -R $web_port:localhost:80 \
-        "$SERVER_USER@$SERVER_HOST"
-    return $?
-}
-
-# Запуск туннеля с обычным ssh
-start_tunnel_with_ssh() {
-    local ssh_port="$1"
-    local web_port="$2"
-    
-    log "Запуск туннеля с ssh: SSH=$ssh_port, WEB=$web_port"
-    
-    sshpass -p "$SERVER_PASSWORD" ssh \
-        -f -N -T \
-        -o ServerAliveInterval=60 \
-        -o ServerAliveCountMax=3 \
-        -o ExitOnForwardFailure=yes \
-        -o StrictHostKeyChecking=no \
-        -o ConnectTimeout=$SSH_TIMEOUT \
-        -p "$SERVER_PORT" \
-        -R $ssh_port:localhost:22 \
-        -R $web_port:localhost:80 \
-        "$SERVER_USER@$SERVER_HOST"
-    
-    return $?
-}
-
 start_tunnel_with_ssh_key() {
     local ssh_port="$1"
     local web_port="$2"
@@ -159,7 +103,7 @@ start_tunnel_with_ssh_key() {
     log "Запуск туннеля с ssh key: SSH=$ssh_port, WEB=$web_port"
 	    
     ssh -i "$SSH_KEY"\
-		-N -T \
+		-f -N -T \
         -o ServerAliveInterval=60 \
         -o ServerAliveCountMax=3 \
         -o ExitOnForwardFailure=yes \
