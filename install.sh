@@ -266,7 +266,6 @@ config tunnel 'settings'
     option server_user '$SERVER_USER'
     option server_host '$SERVER_HOST'
     option server_port '$SERVER_PORT'
-    option server_password '$SERVER_PASSWORD'
 EOF
     
     success "Конфигурация сохранена в $CONFIG_DIR/ssh_tunnel"
