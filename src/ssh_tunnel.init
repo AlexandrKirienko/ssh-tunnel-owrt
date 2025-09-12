@@ -3,7 +3,7 @@
 START=99
 STOP=10
 
-USE_PROCD=1
+#USE_PROCD=1
 PROG=/root/ssh_tunnel.sh
 
 start_service() {
