@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -x
+set -e
 
 # Константы
 REPO_URL="https://raw.githubusercontent.com/AlexandrKirienko/ssh-tunnel-owrt/refs/heads/main/"
