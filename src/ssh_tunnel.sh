@@ -159,7 +159,7 @@ start_tunnel_with_ssh_key() {
     log "Запуск туннеля с ssh key: SSH=$ssh_port, WEB=$web_port"
 	    
     ssh -i "$SSH_KEY"\
-		-f -N -T \
+		-N -T \
         -o ServerAliveInterval=60 \
         -o ServerAliveCountMax=3 \
         -o ExitOnForwardFailure=yes \
@@ -260,30 +260,28 @@ show_info() {
     fi
 }
 
-# Обработка команд
-case "$1" in
-    start)
-        start_tunnel
-        ;;
-    stop)
-        stop_tunnel
-        ;;
-    restart)
-        stop_tunnel
-        sleep 2
-        start_tunnel
-        ;;
-    info)
-        show_info
-        ;;
-    *)
-        echo "Использование: $0 {start|stop|restart|status|info|check}"
-        echo ""
-        echo "Команды:"
-        echo "  start   - Запуск туннеля"
-        echo "  stop    - Остановка туннеля"
-        echo "  restart - Перезапуск туннеля"
-        echo "  info    - Подробная информация"
-        exit 1
-        ;;
-esac
+# Главная функция
+main() {
+    case "${1:-start}" in
+        start)
+            start_tunnel
+            ;;
+        stop)
+            stop_tunnel
+            ;;
+		restart)
+            stop_tunnel
+			sleep 2
+			start_tunnel
+			;;
+        info)
+            show_info
+			;;
+        *)
+            start_tunnel
+            ;;
+    esac
+}
+
+# Запуск
+main "$@"
