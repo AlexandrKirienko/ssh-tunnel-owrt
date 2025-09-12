@@ -132,7 +132,7 @@ generate_ssh_key() {
 	local hostname=$(get_hostname)
 	
     if [ ! -f "$SSH_KEY" ]; then
-        ssh-keygen -t ed25519 -f "$SSH_KEY" -c "$hostname"
+        ssh-keygen -t ed25519 -f "$SSH_KEY" -c "$hostname@router.ro"
         if [ $? -eq 0 ]; then
             success "SSH ключ успешно сгенерирован: $SSH_KEY"
             return 0
@@ -153,7 +153,7 @@ copy_ssh_key() {
     local port="$3"
     local password="$4"
     info "Копируем SSH ключ на сервер..."
-    sshpass -p "$password" ssh-copy-id -p "$port" "$user@$host"
+    sshpass -p "$password" ssh-copy-id -p "$port" "$SSH_KEY" "$user@$host"
     return $?
 }
 
@@ -310,15 +310,6 @@ install_dependencies() {
         opkg update
         opkg install autossh || {
             error "Не удалось установить autossh. Обязательно для работы!"
-            exit 1
-        }
-    fi
-	
-	if ! command -v ssh-copy-id >/dev/null 2>&1; then
-        info "Установка ssh-copy-id для копирования ключей"
-        opkg update
-        opkg install ssh-copy-id || {
-            error "Не удалось установить ssh-copy-id. Обязательно для работы!"
             exit 1
         }
     fi
