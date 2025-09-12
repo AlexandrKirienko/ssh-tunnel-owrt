@@ -3,7 +3,7 @@
 # Конфигурация
 LOG_FILE="/var/log/ssh_tunnel.log"
 PID_FILE="/var/run/ssh_tunnel.pid"
-SSH_KEY="$HOME/.ssh/id_dropbear"
+SSH_KEY="/root/.ssh/id_dropbear"
 CONFIG_FILE="/etc/config/ssh_tunnel"
 PYTHON_SCRIPT="/root/router_manager.py"
 
