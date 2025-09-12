@@ -99,7 +99,7 @@ check_ssh_key_connection() {
     local host="$2"
     local port="$3"
     info "Проверяем подключение по SSH с ключом..."
-    ssh -o BatchMode=yes -o ConnectTimeout=5 -p "$port" -i $SSH_KEY "$user@$host" "echo 'SSH connection with key successful'" 2>/dev/null
+    ssh -o BatchMode=yes -o ConnectTimeout=5 -p "$port" "$SSH_KEY" "$user@$host" "echo 'SSH connection with key successful'" 2>/dev/null
     return $?
 }
 
