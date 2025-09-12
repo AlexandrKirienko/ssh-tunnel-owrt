@@ -114,13 +114,12 @@ load_config() {
 
     if [ -f "$CONFIG_DIR/ssh_tunnel" ]; then
         SERVER_USER=$(uci get ssh_tunnel.settings.server_user 2>/dev/null || echo "root")
-        SERVER_HOST=$(uci get ssh_tunnel.settings.server_host 2>/dev/null || echo "example.com")
+        SERVER_HOST=$(uci get ssh_tunnel.settings.server_host 2>/dev/null)
         SERVER_PORT=$(uci get ssh_tunnel.settings.server_port 2>/dev/null || echo "22")
         SERVER_PASSWORD=$(uci get ssh_tunnel.settings.server_password 2>/dev/null)
 		info "Загрузка конфигурации1"
 	else
 		SERVER_USER="root"
-        SERVER_HOST="example.com"
         SERVER_PORT="22"
 		info "Загрузка конфигурации2"
     fi
