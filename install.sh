@@ -189,6 +189,14 @@ test_ssh_connection() {
     local password="$4"
     
     info "Проверка подключения к серверу..."
+	
+	if check_ssh_key_connection "$user" "$host" "$port"; then
+        success "Успешное подключение по SSH с ключом!"
+		success "Подключение уже сконфигурировано"
+        return 0
+    else
+		warning "Не удалось подключиться с ключом"
+    fi
 		
 	if check_ssh_password_connection "$user" "$host" "$port" "$password"; then
         success  "Успешное подключение по SSH с паролем"
@@ -234,11 +242,16 @@ interactive_setup() {
 		warning "Не удалось подключиться с ключом"
     fi
 	
+	local suser = "$SERVER_USER"
+	local spassword = "$SERVER_PASSWORD"
+	local shost = "$SERVER_HOST"
+	local sport = "$SERVER_PORT"
+	
     # Запрос параметров сервера
-    SERVER_USER=$(input_with_default "Имя пользователя на сервере" "$SERVER_USER")
-    SERVER_PASSWORD=$(input_with_default "Пароль" "$SERVER_PASSWORD")
-	SERVER_HOST=$(input_with_default "Адрес сервера" "$SERVER_HOST")
-    SERVER_PORT=$(input_with_default "SSH порт сервера" "$SERVER_PORT")
+    SERVER_USER=$(input_with_default "Имя пользователя на сервере" "$suser")
+    SERVER_PASSWORD=$(input_with_default "Пароль" "$spassword")
+	SERVER_HOST=$(input_with_default "Адрес сервера" "$shost")
+    SERVER_PORT=$(input_with_default "SSH порт сервера" "$sport")
     # Проверяем что пароль не пустой
     if [ -z "$SERVER_PASSWORD" ]; then
         error "Пароль не может быть пустым!"
