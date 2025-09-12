@@ -132,7 +132,7 @@ generate_ssh_key() {
 	local hostname=$(get_hostname)
 	
     if [ ! -f "$SSH_KEY" ]; then
-        ssh-keygen -t ed25519 -f "$SSH_KEY" -C "$hostname"
+        ssh-keygen -t ed25519 -f "$SSH_KEY" -c "$hostname"
         if [ $? -eq 0 ]; then
             success "SSH ключ успешно сгенерирован: $SSH_KEY"
             return 0
@@ -310,6 +310,15 @@ install_dependencies() {
         opkg update
         opkg install autossh || {
             error "Не удалось установить autossh. Обязательно для работы!"
+            exit 1
+        }
+    fi
+	
+	if ! command -v ssh-copy-id >/dev/null 2>&1; then
+        info "Установка ssh-copy-id для копирования ключей"
+        opkg update
+        opkg install ssh-copy-id || {
+            error "Не удалось установить ssh-copy-id. Обязательно для работы!"
             exit 1
         }
     fi
