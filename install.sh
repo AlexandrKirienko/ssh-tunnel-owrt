@@ -99,7 +99,7 @@ check_ssh_key_connection() {
     local host="$2"
     local port="$3"
     info "Проверяем подключение по SSH с ключом..."
-    ssh -p "$port" "$SSH_KEY" "$user@$host" "echo 'SSH connection with key successful'" 2>/dev/null
+    ssh -p "$port" -i "$SSH_KEY" -o StrictHostKeyChecking=no "$user@$host" "echo 'SSH connection with key successful'" 2>/dev/null
     return $?
 }
 
@@ -258,14 +258,8 @@ interactive_setup() {
         error "Пароль не может быть пустым!"
         exit 1
     fi 
-    
-    # Проверка подключения
-    if ! test_ssh_connection "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT" "$SERVER_PASSWORD"; then
-        error "Проверка подключения не удалась. Прерывание установки."
-        exit 1
-    fi
-    
-    # Создаем конфигурационный файл
+	
+	# Создаем конфигурационный файл
     info "Создание конфигурационного файла..."
     cat > "$CONFIG_DIR/ssh_tunnel" << EOF
 config tunnel 'settings'
@@ -276,7 +270,12 @@ config tunnel 'settings'
 EOF
     
     success "Конфигурация сохранена в $CONFIG_DIR/ssh_tunnel"
-
+    
+    # Проверка подключения
+    if ! test_ssh_connection "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT" "$SERVER_PASSWORD"; then
+        error "Проверка подключения не удалась. Прерывание установки."
+        exit 1
+    fi
 }
 
 # Установка зависимостей
