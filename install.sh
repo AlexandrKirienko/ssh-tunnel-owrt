@@ -103,6 +103,11 @@ check_ssh_key_connection() {
     return $?
 }
 
+# Получаем hostname роутера
+get_hostname() {
+    uci get system.@system[0].hostname 2>/dev/null || cat /proc/sys/kernel/hostname 2>/dev/null || echo "openwrt"
+}
+
 # Функция для проверки подключения по SSH с паролем
 check_ssh_password_connection() {
 	local user="$1"
@@ -123,8 +128,11 @@ check_ssh_password_connection() {
 
 generate_ssh_key() {
     info "Генерируем SSH ключ..."
+	
+	local hostname=$(get_hostname)
+	
     if [ ! -f "$SSH_KEY" ]; then
-        ssh-keygen -t rsa -b 4096 -f "$SSH_KEY" -N "" -q
+        ssh-keygen -t ed25519 -f "$SSH_KEY" -c "$hostname@router.ro"
         if [ $? -eq 0 ]; then
             success "SSH ключ успешно сгенерирован: $SSH_KEY"
             return 0
