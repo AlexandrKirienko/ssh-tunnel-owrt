@@ -1,5 +1,5 @@
 #!/bin/sh
-set -x
+set -e
 
 # Конфигурация
 LOG_FILE="/var/log/ssh_tunnel.log"
