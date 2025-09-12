@@ -86,15 +86,8 @@ run_on_server() {
 
 run_on_server_key() {
     local command="$1"
-	local ssh_options=(
-        -o StrictHostKeyChecking=no
-        -o ConnectTimeout=15
-        -o BatchMode=yes
-        -o PasswordAuthentication=no
-        -p "$SERVER_PORT"
-    )
-       
-    ssh "$SSH_KEY" "${ssh_options[@]}" "$SERVER_USER@$SERVER_HOST" "$command" 2>/dev/null
+	      
+    ssh -p "$SERVER_PORT" -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" "$command" 2>/dev/null
 }
 
 
