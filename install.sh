@@ -381,7 +381,7 @@ uninstall_ssh_tunnel() {
     # Удаляем файлы
     rm -f "$INSTALL_DIR/ssh_tunnel.sh"
     rm -f "$INIT_DIR/ssh_tunnel"
-    rm -f "$CONFIG_DIR/ssh_tunnel"
+#    rm -f "$CONFIG_DIR/ssh_tunnel"
     rm -f "$LOG_DIR/ssh_tunnel.log"
     
     success "SSH Tunnel удален"
