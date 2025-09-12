@@ -109,6 +109,9 @@ get_hostname() {
 }
 
 load_config() {
+    
+	info "Загрузка конфигурации"
+
     if [ -f "$CONFIG_DIR/ssh_tunnel" ]; then
         SERVER_USER=$(uci get ssh_tunnel.settings.server_user 2>/dev/null || echo "root")
         SERVER_HOST=$(uci get ssh_tunnel.settings.server_host 2>/dev/null || echo "example.com")
@@ -242,10 +245,14 @@ interactive_setup() {
 		warning "Не удалось подключиться с ключом"
     fi
 	
-	local suser = "$SERVER_USER"
-	local spassword = "$SERVER_PASSWORD"
-	local shost = "$SERVER_HOST"
-	local sport = "$SERVER_PORT"
+	info "$SERVER_USER"
+	
+	local suser="$SERVER_USER"
+	local spassword="$SERVER_PASSWORD"
+	local shost="$SERVER_HOST"
+	local sport="$SERVER_PORT"
+	
+	info "$suser"
 	
     # Запрос параметров сервера
     SERVER_USER=$(input_with_default "Имя пользователя на сервере" "$suser")
