@@ -6,7 +6,7 @@ STOP=10
 PROCD_DEBUG=1
 INIT_TRACE=1 /etc/init.d/ssh_tunnel start
 
-PROG=/root/ssh_tunnel.sh
+PROG="/root/ssh_tunnel.sh"
 
 start_service() {
     procd_set_param command "$PROG" start
