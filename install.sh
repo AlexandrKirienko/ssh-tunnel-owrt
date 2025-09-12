@@ -99,7 +99,7 @@ check_ssh_key_connection() {
     local host="$2"
     local port="$3"
     info "Проверяем подключение по SSH с ключом..."
-    ssh -p "$port" -i "$SSH_KEY" -o StrictHostKeyChecking=no "$user@$host" "echo 'SSH connection with key successful'" 2>/dev/null
+    ssh -p "$port" -i "$SSH_KEY" -o StrictHostKeyChecking=no -o PasswordAuthentication=no "$user@$host" "echo 'SSH connection with key successful'" 2>/dev/null
     return $?
 }
 
@@ -266,6 +266,7 @@ config tunnel 'settings'
     option server_user '$SERVER_USER'
     option server_host '$SERVER_HOST'
     option server_port '$SERVER_PORT'
+    option server_password '$SERVER_PASSWORD'
 EOF
     
     success "Конфигурация сохранена в $CONFIG_DIR/ssh_tunnel"
@@ -380,7 +381,7 @@ uninstall_ssh_tunnel() {
     # Удаляем файлы
     rm -f "$INSTALL_DIR/ssh_tunnel.sh"
     rm -f "$INIT_DIR/ssh_tunnel"
-#    rm -f "$CONFIG_DIR/ssh_tunnel"
+    rm -f "$CONFIG_DIR/ssh_tunnel"
     rm -f "$LOG_DIR/ssh_tunnel.log"
     
     success "SSH Tunnel удален"
