@@ -4,8 +4,10 @@ set -x
 # Конфигурация
 LOG_FILE="/var/log/ssh_tunnel.log"
 PID_FILE="/var/run/ssh_tunnel.pid"
+SSH_KEY="$HOME/.ssh/id_rsa"
 CONFIG_FILE="/etc/config/ssh_tunnel"
 PYTHON_SCRIPT="/root/router_manager.py"
+
 
 # Загрузка конфигурации из UCI
 load_config() {
@@ -23,6 +25,45 @@ load_config() {
 # Функция для логирования
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
+}
+
+# Функция для ротации логов (альтернативный подход)
+rotate_log() {
+    local max_size_mb="${1:-5}"
+    local max_backups="${2:-3}"
+    local max_size_bytes=$((max_size_mb * 1024 * 1024))
+    
+    if [ ! -f "$LOG_FILE" ]; then
+        return 0
+    fi
+    
+    local file_size=$(stat -c%s "$LOG_FILE" 2>/dev/null || stat -f%z "$log_file" 2>/dev/null)
+    
+    if [ "$file_size" -gt "$max_size_bytes" ]; then
+        echo "Ротируем лог: $LOG_FILE"
+        
+        # Ротируем логи
+        for i in $(seq $max_backups -1 1); do
+            local prev="${LOG_FILE}.${i}"
+            local next="${LOG_FILE}.$((i+1))"
+            
+            if [ -f "$prev" ]; then
+                mv "$prev" "$next" 2>/dev/null
+            fi
+        done
+        
+        # Перемещаем текущий лог
+        mv "$LOG_FILE" "${LOG_FILE}.1" 2>/dev/null
+        
+        # Создаем новый пустой лог-файл
+        touch "$LOG_FILE"
+        chmod 644 "$LOG_FILE" 2>/dev/null
+        
+        echo "Ротация завершена"
+        return 0
+    fi
+    
+    return 0
 }
 
 # Получаем MAC адрес роутера
@@ -43,6 +84,21 @@ run_on_server() {
     sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" "$command" 2>/dev/null
 }
 
+run_on_server_key() {
+    local command="$1"
+	local ssh_options=(
+        -o StrictHostKeyChecking=no
+        -o ConnectTimeout=15
+        -o BatchMode=yes
+        -o PasswordAuthentication=no
+        -p "$SERVER_PORT"
+    )
+       
+    ssh "$SSH_KEY" "${ssh_options[@]}" "$SERVER_USER@$SERVER_HOST" "$command" 2>/dev/null
+}
+
+
+
 # Функция для получения портов из конфига на сервере
 get_tunnel_ports() {
     
@@ -51,7 +107,7 @@ get_tunnel_ports() {
     
     log "Поиск портов для MAC: $ROUTER_MAC, Hostname: $ROUTER_HOSTNAME"    
     
-    local result=$(run_on_server "python3 '$PYTHON_SCRIPT' '$ROUTER_MAC' '$ROUTER_HOSTNAME' 2>&1")
+    local result=$(run_on_server_key "python3 '$PYTHON_SCRIPT' '$ROUTER_MAC' '$ROUTER_HOSTNAME' 2>&1")
 	
 	echo $result
         
@@ -104,9 +160,33 @@ start_tunnel_with_ssh() {
     return $?
 }
 
+start_tunnel_with_ssh_key() {
+    local ssh_port="$1"
+    local web_port="$2"
+    
+    log "Запуск туннеля с ssh key: SSH=$ssh_port, WEB=$web_port"
+	    
+    ssh "$SSH_KEY"
+        -N -T \
+        -o ServerAliveInterval=60 \
+        -o ServerAliveCountMax=3 \
+        -o ExitOnForwardFailure=yes \
+        -o StrictHostKeyChecking=no \
+        -o ConnectTimeout=$SSH_TIMEOUT \
+        -p "$SERVER_PORT" \
+        -R $ssh_port:localhost:22 \
+        -R $web_port:localhost:80 \
+        "$SERVER_USER@$SERVER_HOST"
+    
+    return $?
+}
+
 # Основные функции управления
 start_tunnel() {
-    load_config
+    
+	load_config
+	
+	rotate_log
     
     if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE") 2>/dev/null; then
         echo "Туннель уже запущен (PID: $(cat $PID_FILE))"
@@ -114,13 +194,6 @@ start_tunnel() {
     fi
     
     log "Запуск SSH туннелей"
-    
-    # Проверяем что пароль настроен
-    if [ -z "$SERVER_PASSWORD" ]; then
-        log "Ошибка: Пароль не настроен в конфигурации"
-        echo "Ошибка: Пароль не настроен. Запустите установку заново или настройте вручную в $CONFIG_FILE"
-        return 1
-    fi
     
     # Получаем порты для туннелей
     local ports=$(get_tunnel_ports)
@@ -138,7 +211,7 @@ start_tunnel() {
     
     # Запускаем туннель
     local result=1
-    if start_tunnel_with_ssh "$ssh_port" "$web_port"; then
+    if start_tunnel_with_ssh_key "$ssh_port" "$web_port"; then
         result=0
     fi
     
@@ -194,7 +267,6 @@ show_info() {
         echo "Для запуска: /etc/init.d/ssh_tunnel start"
     fi
 }
-
 
 # Обработка команд
 case "$1" in
