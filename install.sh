@@ -224,6 +224,8 @@ test_ssh_connection() {
 interactive_setup() {
     info "=== Настройка SSH туннеля ==="
 	
+	load_config
+	
 	if check_ssh_key_connection "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT"; then
         success "Успешное подключение по SSH с ключом!"
 		success "Подключение уже сконфигурировано"
