@@ -157,6 +157,32 @@ copy_ssh_key() {
     return $?
 }
 
+# Функция для копирования SSH ключа на сервер
+copy_ssh_key2() {
+    local user="$1"
+    local host="$2"
+    local port="$3"
+    local password="$4"
+    info "Копируем SSH ключ на сервер..."
+	local pub_key=$(cat "${SSH_KEY}.pub")
+	if [ -z "$pub_key" ]; then
+        error "Не удалось прочитать публичный ключ"
+        return 1
+    fi
+	
+	if sshpass -p "$password" ssh -p "$port" -o StrictHostKeyChecking=no "$user@$host" \
+            "mkdir -p ~/.ssh && \
+             chmod 700 ~/.ssh && \
+             echo '$pub_key' >> ~/.ssh/authorized_keys && \
+             chmod 600 ~/.ssh/authorized_keys" 2>/dev/null; then
+            success "SSH ключ успешно скопирован на $host"
+            return 0
+    else
+        error "Не удалось скопировать SSH ключ на $host"
+        return 1
+    fi	
+}
+
 # Проверка подключения к серверу
 test_ssh_connection() {
     local user="$1"
@@ -179,7 +205,7 @@ test_ssh_connection() {
         # Генерируем ключ если его нет
         if generate_ssh_key; then
             # Копируем ключ на сервер
-            if copy_ssh_key "$user" "$host" "$port" "$password"; then
+            if copy_ssh_key2 "$user" "$host" "$port" "$password"; then
                 success "SSH ключ успешно скопирован на сервер"
                 # Проверяем подключение с ключом после копирования
                 info "Проверяем подключение с новым ключом..."
