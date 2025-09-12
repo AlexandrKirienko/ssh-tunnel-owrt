@@ -117,6 +117,10 @@ load_config() {
         SERVER_HOST=$(uci get ssh_tunnel.settings.server_host 2>/dev/null || echo "example.com")
         SERVER_PORT=$(uci get ssh_tunnel.settings.server_port 2>/dev/null || echo "22")
         SERVER_PASSWORD=$(uci get ssh_tunnel.settings.server_password 2>/dev/null)
+	else
+		SERVER_USER="root"
+        SERVER_HOST="example.com"
+        SERVER_PORT="22"
     fi
 }
 
