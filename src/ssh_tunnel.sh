@@ -1,5 +1,4 @@
 #!/bin/sh
-set -e
 
 # Конфигурация
 LOG_FILE="/var/log/ssh_tunnel.log"
@@ -37,7 +36,7 @@ rotate_log() {
         return 0
     fi
     
-    local file_size=$(stat -c%s "$LOG_FILE" 2>/dev/null || stat -f%z "$log_file" 2>/dev/null)
+    local file_size=$(wc -c < "$LOG_FILE" 2>/dev/null)
     
     if [ "$file_size" -gt "$max_size_bytes" ]; then
         echo "Ротируем лог: $LOG_FILE"
