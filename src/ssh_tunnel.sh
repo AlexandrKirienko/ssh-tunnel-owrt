@@ -4,7 +4,7 @@ set -x
 # Конфигурация
 LOG_FILE="/var/log/ssh_tunnel.log"
 PID_FILE="/var/run/ssh_tunnel.pid"
-SSH_KEY="$HOME/.ssh/id_rsa"
+SSH_KEY="$HOME/.ssh/id_dropbear"
 CONFIG_FILE="/etc/config/ssh_tunnel"
 PYTHON_SCRIPT="/root/router_manager.py"
 
@@ -160,6 +160,7 @@ start_tunnel_with_ssh_key() {
     log "Запуск туннеля с ssh key: SSH=$ssh_port, WEB=$web_port"
 	    
     ssh -i "$SSH_KEY"
+		-N -T \
         -o ServerAliveInterval=60 \
         -o ServerAliveCountMax=3 \
         -o ExitOnForwardFailure=yes \
