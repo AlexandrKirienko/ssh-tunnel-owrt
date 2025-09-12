@@ -8,6 +8,8 @@ INSTALL_DIR="/root"
 CONFIG_DIR="/etc/config"
 INIT_DIR="/etc/init.d"
 LOG_DIR="/var/log"
+SSH_KEY="$HOME/.ssh/id_rsa"
+
 
 # Цвета для вывода
 RED='\033[0;31m'
@@ -91,15 +93,25 @@ input_with_default() {
     echo "${input:-$default}"
 }
 
-# Проверка подключения к серверу
-test_ssh_connection() {
-    local user="$1"
+# Функция для проверки подключения по SSH с ключом
+check_ssh_key_connection() {
+	local user="$1"
+    local host="$2"
+    local port="$3"
+    info "Проверяем подключение по SSH с ключом..."
+    ssh -o BatchMode=yes -o ConnectTimeout=5 -p "$port" -i $SSH_KEY "$user@$host" "echo 'SSH connection with key successful'" 2>/dev/null
+    return $?
+}
+
+# Функция для проверки подключения по SSH с паролем
+check_ssh_password_connection() {
+	local user="$1"
     local host="$2"
     local port="$3"
     local password="$4"
-    
-    info "Проверка подключения к серверу..."
-       
+    info "Проверяем подключение по SSH с паролем..."
+	
+    # Используем sshpass для автоматизации ввода пароля
     if sshpass -p "$password" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p "$port" "$user@$host" "echo 'Connection successful'" 2>/dev/null; then
         success "Подключение к серверу успешно!"
         return 0
@@ -109,6 +121,81 @@ test_ssh_connection() {
     fi
 }
 
+generate_ssh_key() {
+    info "Генерируем SSH ключ..."
+    if [ ! -f "$SSH_KEY" ]; then
+        ssh-keygen -t rsa -b 4096 -f "$SSH_KEY" -N "" -q
+        if [ $? -eq 0 ]; then
+            success "SSH ключ успешно сгенерирован: $SSH_KEY"
+            return 0
+        else
+            error "Ошибка генерации SSH ключа"
+            return 1
+        fi
+    else
+        info "SSH ключ уже существует: $SSH_KEY"
+        return 0
+    fi
+}
+
+# Функция для копирования SSH ключа на сервер
+copy_ssh_key() {
+    local user="$1"
+    local host="$2"
+    local port="$3"
+    local password="$4"
+    info "Копируем SSH ключ на сервер..."
+    sshpass -p "$password" ssh-copy-id -p "$port" "$user@$host"
+    return $?
+}
+
+# Проверка подключения к серверу
+test_ssh_connection() {
+    local user="$1"
+    local host="$2"
+    local port="$3"
+    local password="$4"
+    
+    info "Проверка подключения к серверу..."
+	
+	if check_ssh_key_connection "$user" "$host" "$port"; then
+        success "Успешное подключение по SSH с ключом!"
+        return 0
+    else
+		warning "Не удалось подключиться с ключом"
+    fi
+	
+	
+	if check_ssh_password_connection "$user" "$host" "$port" "$password"; then
+        success  "Успешное подключение по SSH с паролем"
+        # Генерируем ключ если его нет
+        if generate_ssh_key; then
+            # Копируем ключ на сервер
+            if copy_ssh_key "$user" "$host" "$port" "$password"; then
+                success "SSH ключ успешно скопирован на сервер"
+                # Проверяем подключение с ключом после копирования
+                info "Проверяем подключение с новым ключом..."
+                if check_ssh_key_connection "$user" "$host" "$port"; then
+                    success "Успешное подключение по SSH с ключом после настройки!"
+                    return 0
+                else
+                    error "Не удалось подключиться с ключом после копирования"
+                    return 1
+                fi
+            else
+                error "Ошибка копирования SSH ключа на сервер"
+                return 1
+            fi
+        else
+            error "Ошибка генерации SSH ключа"
+            return 1
+        fi
+    else
+        error "Не удалось подключиться ни с ключом, ни с паролем"
+        return 1
+    fi
+}
+	
 # Вывод summary конфигурации
 show_config_summary() {
     local user="$1"
