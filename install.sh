@@ -132,7 +132,7 @@ generate_ssh_key() {
 	local hostname=$(get_hostname)
 	
     if [ ! -f "$SSH_KEY" ]; then
-        ssh-keygen -t ed25519 -f "$SSH_KEY" -c "$hostname@router.ro"
+        ssh-keygen -t ed25519 -f "$SSH_KEY" -C "$hostname@router.ro"
         if [ $? -eq 0 ]; then
             success "SSH ключ успешно сгенерирован: $SSH_KEY"
             return 0
