@@ -108,6 +108,15 @@ get_hostname() {
     uci get system.@system[0].hostname 2>/dev/null || cat /proc/sys/kernel/hostname 2>/dev/null || echo "openwrt"
 }
 
+load_config() {
+    if [ -f "$CONFIG_DIR/ssh_tunnel" ]; then
+        SERVER_USER=$(uci get ssh_tunnel.settings.server_user 2>/dev/null || echo "root")
+        SERVER_HOST=$(uci get ssh_tunnel.settings.server_host 2>/dev/null || echo "example.com")
+        SERVER_PORT=$(uci get ssh_tunnel.settings.server_port 2>/dev/null || echo "22")
+        SERVER_PASSWORD=$(uci get ssh_tunnel.settings.server_password 2>/dev/null)
+    fi
+}
+
 # Функция для проверки подключения по SSH с паролем
 check_ssh_password_connection() {
 	local user="$1"
@@ -147,17 +156,6 @@ generate_ssh_key() {
 }
 
 # Функция для копирования SSH ключа на сервер
-copy_ssh_key() {
-    local user="$1"
-    local host="$2"
-    local port="$3"
-    local password="$4"
-    info "Копируем SSH ключ на сервер..."
-    sshpass -p "$password" ssh-copy-id -p "$port" "$SSH_KEY" "$user@$host"
-    return $?
-}
-
-# Функция для копирования SSH ключа на сервер
 copy_ssh_key2() {
     local user="$1"
     local host="$2"
@@ -191,15 +189,7 @@ test_ssh_connection() {
     local password="$4"
     
     info "Проверка подключения к серверу..."
-	
-	if check_ssh_key_connection "$user" "$host" "$port"; then
-        success "Успешное подключение по SSH с ключом!"
-        return 0
-    else
-		warning "Не удалось подключиться с ключом"
-    fi
-	
-	
+		
 	if check_ssh_password_connection "$user" "$host" "$port" "$password"; then
         success  "Успешное подключение по SSH с паролем"
         # Генерируем ключ если его нет
@@ -229,67 +219,29 @@ test_ssh_connection() {
         return 1
     fi
 }
-	
-# Вывод summary конфигурации
-show_config_summary() {
-    local user="$1"
-    local host="$2"
-    local port="$3"
-    local config_path="$4"
-    local password="$5"
-    
-    echo ""
-    info "=== Сводка конфигурации ==="
-    config_show "Сервер: $user@$host:$port"
-    config_show "Пароль: $password"
-    config_show "Файл конфигурации на сервере: $config_path"
-    config_show "Локальный конфиг: $CONFIG_DIR/ssh_tunnel"
-    config_show "Логи: $LOG_DIR/ssh_tunnel.log"
-    echo "============================"
-    echo ""
-}
-
-# Подтверждение конфигурации
-confirm_configuration() {
-    local user="$1"
-    local host="$2"
-    local port="$3"
-    local config_path="$4"
-    local password="$5"
-    
-    show_config_summary "$user" "$host" "$port" "$config_path" "$password"
-    
-    read -r -p "$(question 'Все верно? Продолжить установку? (Y/n): ')" answer
-    case "${answer:-y}" in
-        y|Y|yes|YES|"")
-            return 0
-            ;;
-        *)
-            info "Установка отменена."
-            exit 0
-            ;;
-    esac
-}
 
 # Интерактивная настройка конфигурации
 interactive_setup() {
     info "=== Настройка SSH туннеля ==="
-    echo ""
-       
+	
+	if check_ssh_key_connection "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT"; then
+        success "Успешное подключение по SSH с ключом!"
+		success "Подключение уже сконфигурировано"
+        return 0
+    else
+		warning "Не удалось подключиться с ключом"
+    fi
+	
     # Запрос параметров сервера
-    SERVER_USER=$(input_with_default "Имя пользователя на сервере" "root")
-    SERVER_PASSWORD=$(input_with_default "Пароль" )
-	SERVER_HOST=$(input_with_default "Адрес сервера" "example.com")
-    SERVER_PORT=$(input_with_default "SSH порт сервера" "22")
-    SERVER_CONFIG_PATH=$(input_with_default "Путь к файлу конфигурации на сервере" "/home/user/tunnel_configs.txt")
-	# Проверяем что пароль не пустой
+    SERVER_USER=$(input_with_default "Имя пользователя на сервере" "$SERVER_USER")
+    SERVER_PASSWORD=$(input_with_default "Пароль" "$SERVER_PASSWORD")
+	SERVER_HOST=$(input_with_default "Адрес сервера" "$SERVER_HOST")
+    SERVER_PORT=$(input_with_default "SSH порт сервера" "$SERVER_PORT")
+    # Проверяем что пароль не пустой
     if [ -z "$SERVER_PASSWORD" ]; then
         error "Пароль не может быть пустым!"
         exit 1
     fi 
-    
-    # Подтверждение конфигурации
-    confirm_configuration "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT" "$SERVER_CONFIG_PATH" "$SERVER_PASSWORD"
     
     # Проверка подключения
     if ! test_ssh_connection "$SERVER_USER" "$SERVER_HOST" "$SERVER_PORT" "$SERVER_PASSWORD"; then
@@ -305,7 +257,6 @@ config tunnel 'settings'
     option server_host '$SERVER_HOST'
     option server_port '$SERVER_PORT'
     option server_password '$SERVER_PASSWORD'
-    option server_config_path '$SERVER_CONFIG_PATH'
 EOF
     
     success "Конфигурация сохранена в $CONFIG_DIR/ssh_tunnel"
@@ -330,16 +281,7 @@ install_dependencies() {
             exit 1
         }
     fi
-
-    if ! command -v autossh >/dev/null 2>&1; then
-        info "Установка autossh для автоподключения"
-        opkg update
-        opkg install autossh || {
-            error "Не удалось установить autossh. Обязательно для работы!"
-            exit 1
-        }
-    fi
-    
+   
     success "Зависимости проверены"
 }
 
