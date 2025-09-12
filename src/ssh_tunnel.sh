@@ -103,7 +103,7 @@ start_tunnel_with_ssh_key() {
     log "Запуск туннеля с ssh key: SSH=$ssh_port, WEB=$web_port"
 	    
     ssh -i "$SSH_KEY"\
-		-f -N -T \
+		-N -T \
         -o ServerAliveInterval=60 \
         -o ServerAliveCountMax=3 \
         -o ExitOnForwardFailure=yes \
@@ -114,7 +114,7 @@ start_tunnel_with_ssh_key() {
         -R $web_port:localhost:80 \
         "$SERVER_USER@$SERVER_HOST"
     
-    return $?
+    exit -1
 }
 
 # Основные функции управления
