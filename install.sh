@@ -8,7 +8,7 @@ INSTALL_DIR="/root"
 CONFIG_DIR="/etc/config"
 INIT_DIR="/etc/init.d"
 LOG_DIR="/var/log"
-SSH_KEY="$HOME/.ssh/id_rsa"
+SSH_KEY="$HOME/.ssh/id_dropbear"
 
 
 # Цвета для вывода
@@ -99,7 +99,7 @@ check_ssh_key_connection() {
     local host="$2"
     local port="$3"
     info "Проверяем подключение по SSH с ключом..."
-    ssh -o BatchMode=yes -o ConnectTimeout=5 -p "$port" "$SSH_KEY" "$user@$host" "echo 'SSH connection with key successful'" 2>/dev/null
+    ssh -o BatchMode=yes -o ConnectTimeout=5 -p "$port" -i $SSH_KEY "$user@$host" "echo 'SSH connection with key successful'" 2>/dev/null
     return $?
 }
 
@@ -132,7 +132,7 @@ generate_ssh_key() {
 	local hostname=$(get_hostname)
 	
     if [ ! -f "$SSH_KEY" ]; then
-        ssh-keygen -t ed25519 -f "$SSH_KEY" -c "$hostname@router.ro"
+        dropbearkey -t ed25519 -f "$SSH_KEY" -c "$hostname"
         if [ $? -eq 0 ]; then
             success "SSH ключ успешно сгенерирован: $SSH_KEY"
             return 0
