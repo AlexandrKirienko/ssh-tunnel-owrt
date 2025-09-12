@@ -4,6 +4,7 @@ START=99
 STOP=10
 
 PROCD_DEBUG=1
+INIT_TRACE=1 /etc/init.d/ssh_tunnel start
 
 PROG=/root/ssh_tunnel.sh
 
