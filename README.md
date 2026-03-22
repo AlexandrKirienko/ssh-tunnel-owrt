@@ -13,3 +13,10 @@
 ```bash
 # Автоматическая установка с интерактивной настройкой
 sh <(wget -O - https://raw.githubusercontent.com/AlexandrKirienko/ssh-tunnel-owrt/master/install.sh)
+```
+
+## Установка AWG 2.0 Для 24.10.2 
+
+```bash
+# Автоматическая установка с интерактивной настройкой
+sh <(wget -O - https://raw.githubusercontent.com/AlexandrKirienko/ssh-tunnel-owrt/master/install.sh)
