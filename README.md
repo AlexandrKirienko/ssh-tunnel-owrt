@@ -19,4 +19,4 @@ sh <(wget -O - https://raw.githubusercontent.com/AlexandrKirienko/ssh-tunnel-owr
 
 ```bash
 # Автоматическая установка с интерактивной настройкой
-sh <(wget -O - https://raw.githubusercontent.com/AlexandrKirienko/ssh-tunnel-owrt/master/install.sh)
+sh <(wget -O - https://raw.githubusercontent.com/AlexandrKirienko/ssh-tunnel-owrt/refs/heads/main/amneziawg24.10.2-install.sh)
