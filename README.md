@@ -20,3 +20,10 @@ sh <(wget -O - https://raw.githubusercontent.com/AlexandrKirienko/ssh-tunnel-owr
 ```bash
 # Автоматическая установка с интерактивной настройкой
 sh <(wget -O - https://raw.githubusercontent.com/AlexandrKirienko/ssh-tunnel-owrt/refs/heads/main/amneziawg24.10.2-install.sh)
+```
+
+## Установка Docke+Docker Compouse ubuntu
+```bash
+# Автоматическая установка с интерактивной настройкой
+sh <(wget -O - https://raw.githubusercontent.com/AlexandrKirienko/ssh-tunnel-owrt/refs/heads/main/install_docker.sh)
+```
