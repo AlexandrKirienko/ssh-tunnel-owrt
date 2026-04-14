@@ -22,7 +22,7 @@ pkg_update() {
     if [ "$PKG_MANAGER" = "apk" ]; then
         apk update
     else
-#        opkg update
+        printf "\033[32;1mopkg update..\033[0m\n"
     fi
 }
 
